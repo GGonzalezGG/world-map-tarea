@@ -9,7 +9,10 @@ const WorldMap = () => {
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [panelPosition, setPanelPosition] = useState({ x: 20, y: 20 });
+  const [isDraggingPanel, setIsDraggingPanel] = useState(false);
   const svgRef = useRef(null);
+  const panelRef = useRef(null);
 
   const DEFAULT_COLOR = '#60A5FA';
   const HOVER_COLOR = '#1D4ED8';
@@ -38,30 +41,42 @@ const WorldMap = () => {
     return "";
   };
 
+  const handlePanelDragStart = (e) => {
+    if (e.target.classList.contains('panel-handle')) {
+      setIsDraggingPanel(true);
+    }
+  };
+
+  const handlePanelDragMove = (e) => {
+    if (isDraggingPanel && panelRef.current) {
+      const newX = e.clientX - panelRef.current.offsetWidth;
+      const newY = e.clientY; // Offset from cursor
+      setPanelPosition({ x: newX, y: newY });
+    }
+  };
+
   const handleMouseUp = () => {
     setIsDragging(false);
+    setIsDraggingPanel(false);
   };
 
   useEffect(() => {
+    window.addEventListener('mousemove', handlePanelDragMove);
     window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('mouseleave', handleMouseUp);
     return () => {
+      window.removeEventListener('mousemove', handlePanelDragMove);
       window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('mouseleave', handleMouseUp);
     };
-  }, []);
+  }, [isDraggingPanel]);
 
   return (
     <div className="relative h-screen">
-      {/* Map Section - Now full width */}
+      {/* Map Section */}
       <div className="h-full">
         <div className="p-4 h-full">
           <div className="bg-white rounded-lg shadow-md h-full">
             <div className="p-4">
               <h2 className="text-2xl font-bold mb-2">Interactive World Map</h2>
-              <p className="text-sm text-gray-500">
-                Scroll to zoom, drag to pan, hover or click on countries
-              </p>
             </div>
             <div className="p-4 h-[calc(100%-5rem)]">
               <div 
@@ -106,22 +121,39 @@ const WorldMap = () => {
         </div>
       </div>
 
-      {/* Info Panel - Overlapping position */}
-      <div 
-        className={`fixed top-0 right-0 h-full w-1/3 transform transition-transform duration-300 ease-in-out ${
-          selectedCountry ? 'translate-x-0' : 'translate-x-full'
-        }`}
-      >
-        {selectedCountry && (
-          <CountryInfoPanel 
-            country={selectedCountry} 
-            onClose={() => setSelectedCountry(null)}
-          />
-        )}
-      </div>
+      {/* Draggable Info Panel */}
+      {selectedCountry && (
+        <div 
+          ref={panelRef}
+          className="fixed z-50 w-80"
+          style={{
+            left: `${panelPosition.x}px`,
+            top: `${panelPosition.y}px`,
+            cursor: isDraggingPanel ? 'grabbing' : 'grab',
+          }}
+        >
+          <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
+            <div 
+              className="panel-handle bg-blue-500 text-white p-2 flex justify-between items-center cursor-grab active:cursor-grabbing"
+              onMouseDown={handlePanelDragStart}
+            >
+              
+              <button 
+                onClick={() => setSelectedCountry(null)}
+                className="text-white hover:text-gray-200 px-2"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-4">
+              <CountryInfoPanel 
+                country={selectedCountry}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-      
-    
   );
 };
 
